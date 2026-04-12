@@ -158,6 +158,8 @@ monstartup(lowpc, highpc)
 	moncontrol(1);
 }
 
+#define NAME_LEN 128
+
 void
 _mcleanup()
 {
@@ -175,6 +177,7 @@ _mcleanup()
 	struct gmonparam *p = &_gmonparam;
 	struct gmonhdr gmonhdr, *hdr;
 	char *proffile;
+	wchar_t wproffile[NAME_LEN];
 #ifdef DEBUG
 	int log, len;
 	char dbuf[200];
@@ -245,23 +248,18 @@ _mcleanup()
 	 * Provide for different file names than just "gmon.out".
 	 */
 	{
-#define	NAME_LEN	128
-		wchar_t	nlw[NAME_LEN];
-		char	nl[NAME_LEN];
 		int	len;
 
-		len = GetModuleFileNameW(NULL, nlw, NAME_LEN);
+		len = GetModuleFileNameW(NULL, wproffile, NAME_LEN);
 		if (len == 0) {
-			proffile = "gmon.out";
+			wcscpy(wproffile, L"gmon.out");
 		} else {
-			if (wcstombs(nl, nlw, len) < 0) {
-				proffile = "gmon.out";
+			if (len <= 4 || _wcsicmp(&wproffile[len-4], L".exe") != 0) {
+				wcscat(wproffile, L".gmo");
 			} else {
-				nl[len-3] = 'g';
-				nl[len-2] = 'm';
-				nl[len-1] = 'o';
-
-				proffile = &nl[0];
+				wproffile[len - 3] = L'g';
+				wproffile[len - 2] = L'm';
+				wproffile[len - 1] = L'o';
 			}
 		}
 	}
@@ -271,7 +269,7 @@ _mcleanup()
 #endif
 
 #ifdef	UNDER_CE
-	fp = fopen(proffile, "wb");
+	fp = _wfopen(wproffile, L"wb");
 	if (fp == 0)
 #else
 	fd = open(proffile , O_CREAT|O_TRUNC|O_WRONLY|O_BINARY, 0666);
@@ -279,7 +277,9 @@ _mcleanup()
 #endif
 	{
 #ifdef	UNDER_CE
-		MessageBoxW(0, L"mcleanup", L"cannot open file", 0);
+		wchar_t wmsg[NAME_LEN];
+		swprintf(wmsg, L"cannot open file: %s", wproffile);
+		MessageBoxW(0, wmsg, L"mcleanup", 0);
 #else
 		perror( proffile );
 #endif
