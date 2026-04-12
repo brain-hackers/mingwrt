@@ -49,7 +49,7 @@ AC_SUBST([W32API_INCLUDE], ['-I ${top_srcdir}/../w32api/include'])
 # The following are used by the GCC profiling hooks...
 #
 AC_SUBST([LIBGMON_A], [libgmon.a])
-AC_SUBST([CRT0S], ["gcrt1.o gcrt2.o"])
+AC_SUBST([CRT0S], ["gcrt1.o gcrt2.o gcrt3.o"])
 
 # FIXME: Why is this case determined on `target_os'?
 # There is no code generator to be built here, so `target_os'
