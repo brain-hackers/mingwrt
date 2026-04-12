@@ -76,29 +76,37 @@ void mcount_internal (unsigned long frompc, unsigned long selfpc);
 /* This macro/func MUST save r0, r1 because the compiler inserts
  * blind calls to _mount(), ignoring the fact that _mcount may
  * clobber registers; therefore, _mcount may NOT clobber registers */
-/* if (this_fp!=0) {
+/* if (this_fp != 0) {
  *	r0 = this_fp
  *	r1 = this_lr
- *  	r1 = [r1-4] which is caller's lr 
- *	if (r1!=0) 
- *		r1 = caller's lr
- *	call mcount_internal(this_lr, caller's_lr)
+ *      if ((r0 & 0x80000000) > 0) { // address with MSB = 1 is invalid
+ *		r0 = 0
+ *	} else {
+ *  		r0 = [r0-4] which is caller's lr
+ *	}
+ *	if (r0 != 0) {
+ *		r0 = caller's lr
+ *		if (r0 != 0)
+ *			call mcount_internal(this_lr, caller's_lr)
+ *	}
  *   }
  */
 
 #define MCOUNT								\
 void _mcount (void)							\
 {									\
-	  __asm__("stmdb	sp!, {r0, r1, r2, r3};"			\
-		  "movs		fp, fp;"			      	\
-		  "moveq	r1, #0;"				\
-		  "ldrne	r1, [fp, $-4];"				\
-		  "ldrne	r0, [fp, $-12];"			\
-		  "movnes	r0, r0;"				\
-		  "ldrne	r0, [r0, $-4];"				\
-		  "movs		r0, r0;"				\
-		  "blne		mcount_internal;"			\
-		  "ldmia	sp!, {r0, r1, r2, r3}");		\
+	  __asm__("stmdb	sp!, {r0, r1, r2, r3, lr};"  /* Save arg regs			   */ \
+		  "movs		fp, fp;"		     /* Check if fp is valid (non-zero)	   */ \
+		  "moveq	r1, #0;"		     /* If no fp, clear r1		   */ \
+		  "ldrne	r1, [fp, $-4];"		     /* r1 = this lr			   */ \
+		  "ldrne	r0, [fp, $-12];"	     /* r0 = caller fp			   */ \
+		  "tstne	r0, #0x80000000;"	     /* Check if MSB is set (special area) */ \
+		  "movne	r0, #0;"		     /* If bit set, clear r0		   */ \
+		  "movs		r0, r0;"		     /* Check if r0 is valid (non-zero)	   */ \
+		  "ldrne	r0, [r0, $-4];"		     /* If valid, r0 = caller lr	   */ \
+		  "movs		r0, r0;"		     /* Final check for r0		   */ \
+		  "blne		mcount_internal;"	     /* Call profiler if valid		   */ \
+		  "ldmia	sp!, {r0, r1, r2, r3, lr}"); /* Restore arg regs		   */ \
 }
 #else
 /***************************************************************************
