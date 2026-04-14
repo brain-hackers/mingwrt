@@ -59,7 +59,7 @@
  * so we must use an assembly stub.  */
 
 /* #include <sysdep.h> */
-#ifndef NO_UNDERSCORES
+#ifdef NO_UNDERSCORES
 /* The asm symbols for C functions are `_function'.
  * The canonical name for the counter function is `mcount', no _.  */
 void _mcount (void) asm ("mcount");
